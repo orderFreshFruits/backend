@@ -5,6 +5,7 @@ localStorage = new LocalStorage('./scratch');
 const jwt = require('jsonwebtoken')
 const errorSending = require('./../utility/errorSending')
 const {promisify} = require('util')
+const Cart = require('./../model/tempCart.model')
 
 function tokenOBJ(id){
     return jwt.sign({id : id}, process.env.STRING)
@@ -171,6 +172,59 @@ exports.emptyCartOnModifybtn = async(req, res, next)=>{
         }
     })
 }
+
+
+exports.temporaryCartStoringOnCurrentOrder = async(req, res, next)=>{
+    const {cartArr, grossBill, tax, delivery, platformFee, netBill} = req.body;
+
+    const token = localStorage.getItem("token")
+    const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+    const findingUser = await Signup.find({_id : tokenVerification.id})
+    const existingcart = await Cart.find({user:findingUser[0].id})
+    let creatingCartInDB
+    if(existingcart.length!==0){
+        existingcart[0].cartItems = []
+        cartArr.forEach(async el=>{
+            existingcart[0].cartItems.push({
+                name : el[0].name,
+                price : el[0].price,
+                weight : el[0].weight,
+                units : el[1]
+            })
+        })
+        existingcart[0].grossBill = grossBill,
+        existingcart[0].tax = tax.toFixed(2),
+        existingcart[0].delivery = delivery,
+        existingcart[0].platformFee = platformFee,
+        existingcart[0].netBill = netBill,
+
+        existingcart[0].save()
+    }else{
+       creatingCartInDB = await Cart.create({cart_number : Math.trunc(Math.random()*789789789), user : findingUser[0]._id, grossBill, tax, delivery, platformFee, netBill})
+       console.log(creatingCartInDB)
+        cartArr.forEach(async el=>{
+            creatingCartInDB.cartItems.push({
+                name : el[0].name,
+                price : el[0].price,
+                weight : el[0].weight,
+                units : el[1]
+            })
+        })
+    creatingCartInDB.save()
+    }
+
+
+
+    res.status(200).json({
+        status : "success",
+        data : {
+           message : "Cart generated sucessfully"
+        }
+    })
+}
+
+
+
 const razorpay = require('razorpay')
 
 exports.payments = async(req, res , next)=>{
@@ -188,6 +242,62 @@ exports.payments = async(req, res , next)=>{
         status : "success",
         data : {
            id : order.id
+        }
+    })
+}
+
+
+
+
+exports.approvingPayments = async(req, res, next)=>{
+    const paymentApprovalFromRajorPay = true
+    const token = localStorage.getItem("token")
+    const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+    const findingUser = await Signup.find({_id : tokenVerification.id})
+    const existingcart = await Cart.find({user:findingUser[0].id})
+
+    if(paymentApprovalFromRajorPay){
+        existingcart[0].payment = 'sucessfull'
+    }
+
+    existingcart[0].save()
+
+    next()
+}
+
+exports.placingOrderAfterPayment = async(req, res, next)=>{
+    const token = localStorage.getItem("token")
+    const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+    const findingUser = await Signup.find({_id : tokenVerification.id})
+    const existingcart = await Cart.find({user:findingUser[0].id})
+    findingUser[0].ordersPlaced.push({
+        orderid : `INVOICE-OLF-${findingUser[0]._id}`,
+        orderElements : [...existingcart[0].cartItems],
+        grossBill : existingcart[0].grossBill, 
+        tax : existingcart[0].tax, 
+        delivery : existingcart[0].delivery, 
+        platformFee : existingcart[0].platformFee, 
+        netBill : existingcart[0].netBill
+    })
+    findingUser[0].save()
+    res.status(200).send({
+        status : "success",
+        data : {
+           msg : "order placed"
+        }
+    })
+}
+
+
+exports.displayPreOrders = async(req, res, next)=>{
+    const token = localStorage.getItem("token")
+    const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+    const findingUser = await Signup.find({_id : tokenVerification.id})
+    console.log(findingUser)
+    res.status(200).send({
+        status : "success",
+        data : {
+           orders : [...findingUser[0].ordersPlaced]
         }
     })
 }

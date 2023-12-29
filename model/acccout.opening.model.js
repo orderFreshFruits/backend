@@ -31,27 +31,54 @@ const signUpSchema = new mongoose.Schema({
         enum : ["student", "faculty", "admin"]
     }
     ,
-    cart : [{
-        itemName : {
+    ordersPlaced : [{
+        orderDelivered : {
+            type : Boolean,
+            default : false
+        }
+        ,
+        orderid : {
             type : String
         }
         ,
-        price : {
+        orderElements : [{
+            name : {
+                type : String
+            }
+            ,
+            price : {
+                type : String
+            }
+            ,
+            weight : {
+                type : String
+            }
+            ,
+            units : {
+                type : Number
+            }
+        }]
+        ,
+        grossBill : {
             type : String
         }
         ,
-        units : {
+        tax : {
             type : String
         }
         ,
-        date : {
+        delivery : {
+            type : Number,
+            default : 5
+        }
+        ,
+        platformFee : {
+            type : Number,
+            default : 5
+        }
+        ,
+        netBill : {
             type : String,
-            default : new Date().toLocaleDateString()
-        }
-        ,
-        time : {
-            type : String,
-            default : new Date().toLocaleTimeString() 
         }
     }]
 
