@@ -301,3 +301,55 @@ exports.displayPreOrders = async(req, res, next)=>{
         }
     })
 }
+
+
+exports.sendingTomorrowOrdersToVendorPanel = async(req, res, next)=>{
+    const users = await Signup.find()
+    const allOrdersForTomorrowArray = []
+    const allOrdersElementsToDeliveredTomorrow = []
+    const allElementsNameList = []
+    users.forEach(el=>{
+        allOrdersForTomorrowArray.push(...el.ordersPlaced)
+    })
+
+    allOrdersForTomorrowArray.forEach(el=>{
+        allOrdersElementsToDeliveredTomorrow.push(...el.orderElements)
+    })
+
+    allOrdersElementsToDeliveredTomorrow.forEach(el=>{
+        allElementsNameList.push(el.name)
+    })
+
+    const nameSet = new Set(allElementsNameList)
+
+    const finalList = []
+
+    nameSet.forEach(el=>{
+        let sum = 0;
+        let price = 0;
+        let weight;
+        allOrdersElementsToDeliveredTomorrow.forEach(item=>{
+            if(el===item.name){
+                price = item.price
+                sum += Number(item.units)
+                weight = item.weight
+            }
+        })
+        const obj = {
+            name : el,
+            netUnits : sum,
+            price : price,
+            weight : weight
+        }
+        finalList.push(obj)
+    })
+
+    console.log(finalList)
+
+    res.status(200).send({
+        status : "success",
+        data : {
+            list : finalList
+        }
+    })
+}

@@ -10,6 +10,8 @@ router.route('/pay').get(accountOpeningController.payments)
 router.route('/temp-cart').post(accountOpeningController.temporaryCartStoringOnCurrentOrder)
 router.route('/pay-approve').get(accountOpeningController.approvingPayments, accountOpeningController.placingOrderAfterPayment)
 router.route('/pre-orders').get(accountOpeningController.displayPreOrders)
+router.route('/vendors-list').get(accountOpeningController.sendingTomorrowOrdersToVendorPanel)
+
 
 
 module.exports = router
