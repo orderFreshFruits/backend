@@ -28,7 +28,12 @@ const signUpSchema = new mongoose.Schema({
     role : {
         type : String,
         default : "student",
-        enum : ["student", "faculty", "admin"]
+        enum : ["student", "faculty", "admin", "vendor"]
+    }
+    ,
+    streakCount : {
+        type : Number,
+        default: 0
     }
     ,
     ordersPlaced : [{
@@ -79,6 +84,21 @@ const signUpSchema = new mongoose.Schema({
         ,
         netBill : {
             type : String,
+        }
+    }]
+    ,
+    subscriptionActive : [{
+        plan : {
+            type : String,
+            default : ''
+        }
+        ,
+        startDate : {
+            type : String
+        }
+        ,
+        mature : {
+            type : String
         }
     }]
 

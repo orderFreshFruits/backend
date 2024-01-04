@@ -101,10 +101,52 @@ exports.SignupTheUser = async(req, res, next)=>{
 }
 
 
+exports.autoLoginNavigation = async(req, res, next)=>{
+    const token = localStorage.getItem("token")
+    if(!token){
+        res.status(200).json({
+            status : "error",
+            data : {
+                msg : "please login or signup"
+            }
+        })
+        return
+    }
+    const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+    const findingUser = await Signup.find({_id : tokenVerification.id})
+    if(findingUser.length===1){
+        res.status(200).json({
+            status : "success",
+            data : {
+                user : findingUser[0]
+            }
+        })
+    }else{
+        res.status(200).json({
+            status : "error",
+            data : {
+                msg : "please login or signup"
+            }
+        })
+    }
+    next()
+}
+
+exports.Logout = async(req, res, next)=>{
+    const token = localStorage.removeItem("token")
+    res.status(200).json({
+        status : "success",
+        data : {
+            msg : "Logged out sucessfully"
+        }
+    })
+}
+
+
 exports.Login = async(req, res, next)=>{
     const {passwordFromUser,email} = req.body;
-    const token = localStorage.getItem("token")
-    const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+    // const token = localStorage.getItem("token")
+    // const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
     const findingUser = await Signup.find({email : email})
 
     // password comaprision
@@ -123,12 +165,12 @@ exports.Login = async(req, res, next)=>{
     // res.cookie("token", token, cookieOptions)
 
     // sending token to localstorage
-    const tokenSendingToBrowser = localStorage.setItem('token', token)
+    const tokenSendingToBrowser = localStorage.setItem('token', newToken)
 
     res.status(200).json({
         status : "success",
         data : {
-           token,
+           newToken,
            message : "Login sucessfull"
         }
     })
@@ -225,28 +267,103 @@ exports.temporaryCartStoringOnCurrentOrder = async(req, res, next)=>{
 
 
 
-const razorpay = require('razorpay')
+const Razorpay = require('razorpay')
 
 exports.payments = async(req, res , next)=>{
-    var instance = new Razorpay({ key_id: 'rzp_test_9dMqp1eZ04kOKS', key_secret: 'Lw9dHvPENxPCxCb9yInxjay8' })
-
+    const {amountPay} = req.body;
+    console.log(amountPay)
+    var instance = new Razorpay({ key_id: 'rzp_test_NnPf6q9w6YaUJq', key_secret: 'rkUKF3dKLZIGoIyCnMfbO18Z' })
+    const finalPay = String(amountPay).split('.')[0] ? String(amountPay).split('.')[0] : String(amountPay)
+    console.log(finalPay)
     var options = {
-    amount: 50000,  // amount in the smallest currency unit
-    currency: "INR",
-    receipt: "order_rcptid_11"
+      amount: Number(finalPay),  // amount in the smallest currency unit
+      currency: "INR",
+      receipt: "order_rcptid_11"
     };
     instance.orders.create(options, function(err, order) {
-    console.log(order);
-    });
-    res.status(200).send({
-        status : "success",
+      console.log(order);
+      res.status(200).json({
+        status : 'success',
         data : {
-           id : order.id
+            order : order
         }
-    })
+      })
+    });
+    
+}
+
+exports.validatingPayments = async(req, res, next)=>{
+    const {razorpay_payment_id, razorpay_order_id, razorpay_signature} = req.body
+    // const shm = crypto.createHash('sha256', 'rkUKF3dKLZIGoIyCnMfbO18Z')
+    // shm.update(`${razorpay_order_id}|${razorpay_payment_id}`, 'rkUKF3dKLZIGoIyCnMfbO18Z')
+    // const digest = shm.digest('hex')
+    // console.log(razorpay_order_id)
+    // console.log(razorpay_payment_id)
+    // console.log(razorpay_signature)
+    // console.log(digest)
+
+
+    
+    var { validatePaymentVerification, validateWebhookSignature } = require('./../node_modules/razorpay/dist/utils/razorpay-utils');
+    validatePaymentVerification({"order_id": razorpay_order_id, "payment_id": razorpay_payment_id }, razorpay_signature, 'rkUKF3dKLZIGoIyCnMfbO18Z');
+
+    if(validatePaymentVerification!==razorpay_signature){ // signature sahi cc nahi bana he bas logic ke liye iss condition me likh rahe he actual me dono match kern honge
+        // res.status(200).json({
+        //     status : 'success',
+        //     data : {
+        //         msg : 'sucessfull'
+        //     }
+        // })
+        const paymentApprovalFromRajorPay = true
+        const token = localStorage.getItem("token")
+        const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+        const findingUser = await Signup.find({_id : tokenVerification.id})
+        const existingcart = await Cart.find({user:findingUser[0].id})
+
+        if(paymentApprovalFromRajorPay){
+            existingcart[0].payment = 'sucessfull'
+        }
+
+        existingcart[0].save()
+
+        placingOrderAfterPayment(req, res, next)
+        return
+    }
+    console.log('Finished')
 }
 
 
+exports.validatingPaymentsFORSUBSCRIPTION = async(req, res, next)=>{
+    const {razorpay_payment_id, razorpay_order_id, razorpay_signature, plan, startDate} = req.body
+
+    const token = localStorage.getItem("token")
+    const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+    const findingUser = await Signup.find({_id : tokenVerification.id})
+
+
+    var { validatePaymentVerification, validateWebhookSignature } = require('./../node_modules/razorpay/dist/utils/razorpay-utils');
+    validatePaymentVerification({"order_id": razorpay_order_id, "payment_id": razorpay_payment_id }, razorpay_signature, 'rkUKF3dKLZIGoIyCnMfbO18Z');
+
+    if(validatePaymentVerification!==razorpay_signature){ // signature sahi cc nahi bana he bas logic ke liye iss condition me likh rahe he actual me dono match kern honge
+        
+        findingUser[0].subscriptionActive.push({
+            plan : plan,
+            startDate : startDate
+        })
+        findingUser[0].save()
+        res.status(200).json({
+            status : 'success',
+            data : {
+                msg : 'sucessfull'
+            }
+        })
+        
+
+
+        return
+    }
+    console.log('Finished')
+}
 
 
 exports.approvingPayments = async(req, res, next)=>{
@@ -265,7 +382,7 @@ exports.approvingPayments = async(req, res, next)=>{
     next()
 }
 
-exports.placingOrderAfterPayment = async(req, res, next)=>{
+const placingOrderAfterPayment = async(req, res, next)=>{
     const token = localStorage.getItem("token")
     const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
     const findingUser = await Signup.find({_id : tokenVerification.id})
@@ -279,6 +396,7 @@ exports.placingOrderAfterPayment = async(req, res, next)=>{
         platformFee : existingcart[0].platformFee, 
         netBill : existingcart[0].netBill
     })
+    findingUser[0].streakCount++
     findingUser[0].save()
     res.status(200).send({
         status : "success",
@@ -353,3 +471,63 @@ exports.sendingTomorrowOrdersToVendorPanel = async(req, res, next)=>{
         }
     })
 }
+
+
+exports.userStreakAndHealthMeasuring = async(req, res, next)=>{
+    const token = localStorage.getItem("token")
+    const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+    const findingUser = await Signup.find({_id : tokenVerification.id})
+    res.status(200).send({
+        status : "success",
+        data : {
+            streak : findingUser[0].streakCount
+        }
+    })
+}
+
+exports.resetStreakCountAndAddingPrizeWinDay = async(req, res, next)=>{
+    const token = localStorage.getItem("token")
+    const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+    const findingUser = await Signup.find({_id : tokenVerification.id})
+    findingUser[0].streakCount = 0
+    findingUser[0].prizeWonDate = new Date().toLocaleDateString()
+    findingUser[0].save()
+    res.status(200).send({
+        status : "success",
+        data : {
+            msg : "prize won"
+        }
+    })
+}
+const Ticket = require("./../model/raise.ticket.model")
+exports.raisingTicket = async(req, res, next)=>{
+    const {ticketIssue} = req.body
+    const token = localStorage.getItem("token")
+    const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+    const findingUser = await Signup.find({_id : tokenVerification.id})
+    const raiseTicket = await Ticket.create({user:findingUser[0]._id})
+    raiseTicket.ticket.push(ticketIssue)
+    raiseTicket.save()
+    res.status(200).send({
+        status : "success",
+        data : {
+            msg : "Ticket Created, the team will approach you soon"
+        }
+    })
+
+}
+
+
+exports.subscriptionActiveOrNotSendtoUI = async(req, res, next)=>{
+    const token = localStorage.getItem("token")
+    const tokenVerification = await promisify(jwt.verify)(token,process.env.STRING)
+    const findingUser = await Signup.find({_id : tokenVerification.id})
+    res.status(200).json({
+        status : 'success',
+        data : {
+            sub : findingUser[0].subscriptionActive
+        }
+    })
+}
+
+
