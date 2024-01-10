@@ -6,6 +6,8 @@ router.route('/signup').post(accountOpeningController.SignupTheUser)
 router.route('/login').post(accountOpeningController.Login)
 router.route('/auto-login').get(accountOpeningController.autoLoginNavigation)
 router.route('/logout').get(accountOpeningController.Logout)
+router.route('/forgot-password').post(accountOpeningController.forgotPassword)
+
 router.route('/cart').post(accountOpeningController.cart)
 router.route('/empty-cart').get(accountOpeningController.emptyCartOnModifybtn)
 router.route('/pay').post(accountOpeningController.payments)

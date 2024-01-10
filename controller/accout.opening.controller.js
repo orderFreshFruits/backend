@@ -13,13 +13,22 @@ function tokenOBJ(id){
 
 
 exports.SignupTheUser = async(req, res, next)=>{
-    const {username, email, password, phone, role} = req.body;
+    const {username, email, password, phone, role, secret} = req.body;
     const passwordSplit = password.split('')
     let capitalLetterArray = []
     let lowerLetterArray = []
     let specialLetterArray = []
     let numericLetterArray = []
 
+    if(username==''){
+        errorSending.error(res, 'error', 'Username is compulsory', 200)
+        return; 
+    }
+
+    if(email==''){
+        errorSending.error(res, 'error', 'Email is compulsory', 200)
+        return; 
+    }
 
     passwordSplit.forEach(el=>{
         if(el.charCodeAt()>=65 && el.charCodeAt()<=90){
@@ -76,7 +85,7 @@ exports.SignupTheUser = async(req, res, next)=>{
     // crypting the password
     const cryptedPassword = await bcrypt.hash(password, 12)
     // creating the user from the data into the database    
-    const openingAcc = await Signup.create({username,email,password:cryptedPassword, phone, role})
+    const openingAcc = await Signup.create({username,email,password:cryptedPassword, phone, role,secret})
     // token providing
     const token = tokenOBJ(openingAcc._id)
     console.log(token)
@@ -95,7 +104,8 @@ exports.SignupTheUser = async(req, res, next)=>{
             token,
             username,
             email,
-            password
+            password,
+            secret
         }
     })
 }
@@ -174,6 +184,34 @@ exports.Login = async(req, res, next)=>{
            message : "Login sucessfull"
         }
     })
+}
+
+
+exports.forgotPassword = async(req, res, next)=>{
+    const {secret, email, password} = req.body;
+
+    const user = await Signup.find({email : email})
+    console.log(user)
+    if(user[0].secret===secret){
+        user[0].password = await bcrypt.hash(password,12)
+        user[0].save()
+        res.status(200).json({
+            status : "success",
+            data : {
+                msg : "password changed sucessfully"
+            }
+        })
+        return
+    }else{
+        res.status(200).json({
+            status : "error",
+            data : {
+                msg : "secret incorrect"
+            }
+        })
+        return
+    }
+
 }
 
 
@@ -499,7 +537,8 @@ exports.resetStreakCountAndAddingPrizeWinDay = async(req, res, next)=>{
         }
     })
 }
-const Ticket = require("./../model/raise.ticket.model")
+const Ticket = require("./../model/raise.ticket.model");
+const { Sign } = require('crypto');
 exports.raisingTicket = async(req, res, next)=>{
     const {ticketIssue} = req.body
     const token = localStorage.getItem("token")

@@ -69,3 +69,8 @@ exports.totalDailyRevenue = async(req, res, next)=>{
         }
     })
 }
+
+
+exports.deliveringOrdersAndMoveToPrevorders = async(req, res, next)=>{
+    // const {username,}
+}

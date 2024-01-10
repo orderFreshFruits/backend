@@ -31,6 +31,10 @@ const signUpSchema = new mongoose.Schema({
         enum : ["student", "faculty", "admin", "vendor"]
     }
     ,
+    secret : {
+        type : String
+    }
+    ,
     streakCount : {
         type : Number,
         default: 0
@@ -62,6 +66,34 @@ const signUpSchema = new mongoose.Schema({
             units : {
                 type : Number
             }
+        }]
+        ,
+        prevOrders : [{
+            orderDelivered : {
+                type : Boolean,
+            }
+            ,
+            orderid : {
+                type : String
+            }
+            ,
+            orderElements : [{
+                name : {
+                    type : String
+                }
+                ,
+                price : {
+                    type : String
+                }
+                ,
+                weight : {
+                    type : String
+                }
+                ,
+                units : {
+                    type : Number
+                }
+            }]
         }]
         ,
         grossBill : {
